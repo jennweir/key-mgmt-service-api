@@ -31,7 +31,7 @@ def check_auth():
         abort(401, description="API key is missing")
 
     api_key = request.headers['x-api-key']
-    if api_key not in API_KEYS:
+    if api_key not in API_KEYS or API_KEYS[api_key]['revoked'] is True:
         abort(401, description="API key is invalid")
 
     return API_KEYS[api_key]
