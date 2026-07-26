@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, abort
 from cryptography.fernet import Fernet
 import uuid
-import datetime
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 
@@ -58,7 +58,7 @@ def generate_key():
     encrypted_key = cipher_suite.encrypt(new_key_material.encode('utf-8')).decode('utf-8')
     key_database[key_id] = {
         'encrypted_key': encrypted_key,
-        'created_at': datetime.now(datetime.timezone.utc).isoformat(),
+        'created_at': datetime.now(timezone.utc).isoformat(),
         'created_by': role,
         'revoked': False
     }
