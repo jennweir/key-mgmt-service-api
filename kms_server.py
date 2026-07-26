@@ -21,13 +21,20 @@ key_database = {}
 # --- HELPER FUNCTIONS ---
 def check_auth():
     """
-    TODO: Implement Auth
+    Auth Implementation
     1. Check if the 'x-api-key' header exists in the request.
     2. Check if the provided key exists in the API_KEYS dictionary.
     3. If missing or invalid, use abort(401) to reject the request.
     4. If valid, return the role associated with the API key.
     """
-    pass # Remove this pass and write your logic here
+    if 'x-api-key' not in request.headers:
+        abort(401, description="API key is missing")
+
+    api_key = request.headers['x-api-key']
+    if api_key not in API_KEYS:
+        abort(401, description="API key is invalid")
+
+    return API_KEYS[api_key]
 
 # --- API ENDPOINTS ---
 
@@ -39,7 +46,7 @@ def generate_key():
     key_id = str(uuid.uuid4())
     
     """
-    TODO: Encrypt Key & Add Metadata
+    Key Encryption & Add Metadata
     1. Encrypt 'new_key_material' using the cipher_suite.
     2. Store it in key_database[key_id] as a dictionary containing:
        - 'encrypted_key': the encrypted data
@@ -47,9 +54,14 @@ def generate_key():
        - 'created_by': the role that generated the key
        - 'revoked': False
     """
-    
-    # Placeholder: replace with actual encryption and storage logic
-    key_database[key_id] = {'encrypted_key': new_key_material, 'revoked': False} 
+    # encryption and storage logic
+    encrypted_key = cipher_suite.encrypt(new_key_material.encode('utf-8')).decode('utf-8')
+    key_database[key_id] = {
+        'encrypted_key': encrypted_key,
+        'created_at': datetime.now(datetime.timezone.utc).isoformat(),
+        'created_by': role,
+        'revoked': False
+    }
 
     return jsonify({"message": "Key generated successfully", "key_id": key_id}), 201
 
@@ -67,20 +79,18 @@ def get_key(key_id):
         abort(400, description="This key has been revoked")
 
     """
-    TODO: Decrypt Key
+    Key Decryption
     1. Retrieve the encrypted key from key_record.
     2. Decrypt it using the cipher_suite.
     3. Assign the decrypted value to 'decrypted_key_material'.
     """
-    
-    # Placeholder: replace with actual decryption logic
-    decrypted_key_material = key_record['encrypted_key']
+    # decryption logic
+    decrypted_key_material = cipher_suite.decrypt(key_record['encrypted_key'].encode('utf-8')).decode('utf-8')
 
     return jsonify({
         "key_id": key_id, 
         "key_material": decrypted_key_material,
         "metadata": {
-            # Note: Ensure you added 'created_at' and 'created_by' in the POST route
             "created_at": key_record.get('created_at'),
             "created_by": key_record.get('created_by')
         }
@@ -90,15 +100,21 @@ def get_key(key_id):
 @app.route('/keys/<key_id>', methods=['DELETE'])
 def revoke_key(key_id):
     role = check_auth()
-    
     """
-    TODO: Implement RBAC & Revoke
+    RBAC & Revoke Implementation
     1. Check if the 'role' is 'admin'. If not, abort(403, description="Forbidden").
     2. Check if the key_id exists in the key_database. If not, abort(404).
     3. Update the key_record so that 'revoked' is True. 
        (Do NOT delete the key from the dictionary).
     """
-    
+    if role != 'admin':
+        abort(403, description="Forbidden")
+
+    if key_id not in key_database:
+        abort(404, description="Key ID does not exist in the key database")
+
+    key_database[key_id]['revoked'] = True
+
     return jsonify({"message": f"Key {key_id} successfully revoked."}), 200
 
 if __name__ == '__main__':
